@@ -191,12 +191,31 @@ def los_penalty_fault(fparams, eparams, data):
     # calculate the model
     model_los_disps = rect_shear_fault(fparams, eparams, data)
     
-    # estimate the mean residual
-    zero_shift = np.mean(data[:,2]-model_los_disps)
+    # single numpy array or a list?
+    if type(data) is list:        
+        # if a list, then we need to treat each dataset separately
+        
+        penalty = 0  # use this to sum the penalties for each of the data sets
+
+        # loop through 'em
+        for i in range(len(data)):           
+            # extract yer dataset from the list
+            dataset = data[i]
+            # estimate the mean residual
+            zero_shift = np.mean(dataset[:,2]-model_los_disps[i])
+            # subtract it, calculate the squared penalty, add it to the penalty variable 
+            penalty += np.sum(np.square((dataset[:,2]-zero_shift)-model_los_disps[i]))
+                    
+    else:
+        # if it is a single numpy array, it should be straightforward
+        
+        # estimate the mean residual
+        zero_shift = np.mean(data[:,2]-model_los_disps)
+        
+        # subtract it when computing the total squared penalty
+        penalty = np.sum(np.square((data[:,2]-zero_shift)-model_los_disps))
     
-    # subtract it when computing the total squared penalty
-    penalty = np.sum(np.square((data[:,2]-zero_shift)-model_los_disps))
-    
+    # and we#re done!
     return penalty
 
 def los_penalty_tensile(fparams, eparams, data):
