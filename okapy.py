@@ -8,13 +8,14 @@
 #
 # change history:
 # 12-aug-2020  gjf  added tensile dislocation functions (rect_tensile_fault, los_penalty_tensile)
+# 29-dec-2021  gjf  modified rect_shear_fault to include multiple datasets (as a list of arrays)
 
 
 from okada_wrapper import dc3dwrapper
 from math import sin, cos, tan, radians
 import numpy as np
 
-def rect_shear_fault(fparams, eparams, data): 
+def rect_shear_fault(fparams, eparams, data, *args): 
     "Attempt at a functional Okada dislocation model - wish me luck!"
     
     # fparams is a vector of fault parameter input
@@ -27,6 +28,10 @@ def rect_shear_fault(fparams, eparams, data):
     #   minimum 6 numbers: x_pos, y_pos, displacement, x_los, y_los, z_los
     #      positions, displacement in meters, rest are unit los vector components 
 
+    # this should work regardless whether input is a list or a 2D array
+    alldata = np.vstack(data)
+    n = len(alldata)    
+    
     # fault parameters
     strike = fparams[0]
     dip = fparams[1]
@@ -58,17 +63,16 @@ def rect_shear_fault(fparams, eparams, data):
     ss=slip*cos(radians(rake))
     ds=slip*sin(radians(rake))
 
-    # how many data points are we dealing with?
-    n = len(data)
-    
+    # make some blank arrays
+         
     UX = np.zeros(n)
     UY = np.zeros(n)
     UZ = np.zeros(n)
-
+      
     for i in range(n):
     
         # shift and rotate the coordinates into Okada geometry
-        P=np.array([[data[i,0]-xc],[data[i,1]-yc]]); # observation point wrt centroid in map coordinates
+        P=np.array([[alldata[i,0]-xc],[alldata[i,1]-yc]]); # observation point wrt centroid in map coordinates
         Q=R.dot(P)                         # observation point rotated into Okada geometry
             
         # run the Okada dc3d function on the rotated coordinates   
@@ -85,9 +89,34 @@ def rect_shear_fault(fparams, eparams, data):
         UY[i] = u[0]*cos(radians(strike))-u[1]*sin(radians(strike))   # y displacement
         UZ[i] = u[2]   # z displacement
     
-    ULOS = np.multiply(UX,data[:,3]) + np.multiply(UY,data[:,4]) + np.multiply(UZ,data[:,5])
+    ULOS = np.multiply(UX,alldata[:,3]) + np.multiply(UY,alldata[:,4]) + np.multiply(UZ,alldata[:,5])
+
+    # and finally, output the results
     
-    return ULOS
+    # format of the output depends whether input was a list or a 2D array
+    if type(data) is list:        
+        # if input was a list of arrays, then we shall output a list or arrays 
+        
+        # and we shall call it 'modeldisps'
+        modeldisps = list()
+        startrow = 0
+        
+        # looping through your inputs
+        for i in range(len(data)):
+            nrows = len(data[i])
+            # extract a chunk of the calculated displacements...
+            outdisps = ULOS[startrow:startrow+nrows]
+            # ...and concatenate them
+            modeldisps.append(outdisps)
+            # update your row counter and bob's your monkhouse
+            startrow += nrows
+        
+        # and return the list!
+        return modeldisps
+    
+    else:
+        # if input was an array, return what we just made verbatim
+        return ULOS
 
 def rect_tensile_fault(fparams, eparams, data): 
     "Attempt at a functional Okada dyke and sill model - wish me luck!"
