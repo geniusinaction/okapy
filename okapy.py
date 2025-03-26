@@ -132,6 +132,10 @@ def rect_tensile_fault(fparams, eparams, data):
     #   minimum 6 numbers: x_pos, y_pos, displacement, x_los, y_los, z_los
     #      positions, displacement in meters, rest are unit los vector components 
 
+    # this should work regardless whether input is a list or a 2D array
+    alldata = np.vstack(data)
+    n = len(alldata)   
+    
     # fault parameters
     strike = fparams[0]
     dip = fparams[1]
@@ -180,7 +184,32 @@ def rect_tensile_fault(fparams, eparams, data):
     
     ULOS = np.multiply(UX,data[:,3]) + np.multiply(UY,data[:,4]) + np.multiply(UZ,data[:,5])
     
-    return ULOS
+    # and finally, output the results
+    
+    # format of the output depends whether input was a list or a 2D array
+    if type(data) is list:        
+        # if input was a list of arrays, then we shall output a list of arrays 
+        
+        # and we shall call it 'modeldisps'
+        modeldisps = list()
+        startrow = 0
+        
+        # looping through your inputs
+        for i in range(len(data)):
+            nrows = len(data[i])
+            # extract a chunk of the calculated displacements...
+            outdisps = ULOS[startrow:startrow+nrows]
+            # ...and concatenate them
+            modeldisps.append(outdisps)
+            # update your row counter and bob's your monkhouse
+            startrow += nrows
+        
+        # and return the list!
+        return modeldisps
+    
+    else:
+        # if input was an array, return what we just made verbatim
+        return ULOS
 
 
 def los_penalty_fault(fparams, eparams, data):
@@ -215,7 +244,7 @@ def los_penalty_fault(fparams, eparams, data):
         # subtract it when computing the total squared penalty
         penalty = np.sum(np.square((data[:,2]-zero_shift)-model_los_disps))
     
-    # and we#re done!
+    # and we're done!
     return penalty
 
 def los_penalty_tensile(fparams, eparams, data):
@@ -226,10 +255,30 @@ def los_penalty_tensile(fparams, eparams, data):
     # calculate the model
     model_los_disps = rect_tensile_fault(fparams, eparams, data)
     
-    # estimate the mean residual
-    zero_shift = np.mean(data[:,2]-model_los_disps)
+    # single numpy array or a list?
+    if type(data) is list:        
+        # if a list, then we need to treat each dataset separately
+        
+        penalty = 0  # use this to sum the penalties for each of the data sets
+
+        # loop through 'em
+        for i in range(len(data)):           
+            # extract yer dataset from the list
+            dataset = data[i]
+            # estimate the mean residual
+            zero_shift = np.mean(dataset[:,2]-model_los_disps[i])
+            # subtract it, calculate the squared penalty, add it to the penalty variable 
+            penalty += np.sum(np.square((dataset[:,2]-zero_shift)-model_los_disps[i]))
+                    
+    else:
+        # if it is a single numpy array, it should be straightforward
+        
+        # estimate the mean residual
+        zero_shift = np.mean(data[:,2]-model_los_disps)
+        
+        # subtract it when computing the total squared penalty
+        penalty = np.sum(np.square((data[:,2]-zero_shift)-model_los_disps))
     
-    # subtract it when computing the total squared penalty
-    penalty = np.sum(np.square((data[:,2]-zero_shift)-model_los_disps))
-    
+    # and we're done!
     return penalty
+    
