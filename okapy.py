@@ -9,6 +9,7 @@
 # change history:
 # 12-aug-2020  gjf  added tensile dislocation functions (rect_tensile_fault, los_penalty_tensile)
 # 29-dec-2021  gjf  modified rect_shear_fault to include multiple datasets (as a list of arrays)
+# 24-feb-2026  gjf  fixed rect_tensile_fault handling of multiple datasets
 
 
 from okada_wrapper import dc3dwrapper
@@ -95,7 +96,7 @@ def rect_shear_fault(fparams, eparams, data, *args):
     
     # format of the output depends whether input was a list or a 2D array
     if type(data) is list:        
-        # if input was a list of arrays, then we shall output a list or arrays 
+        # if input was a list of arrays, then we shall output a list of arrays 
         
         # and we shall call it 'modeldisps'
         modeldisps = list()
@@ -154,9 +155,6 @@ def rect_tensile_fault(fparams, eparams, data):
     # make a rotation matrix to account for strike
     R=np.array([[cos(radians(strike-90)), -sin(radians(strike-90))], 
                 [sin(radians(strike-90)), cos(radians(strike-90))]])
-
-    # how many data points are we dealing with?
-    n = len(data)
     
     UX = np.zeros(n)
     UY = np.zeros(n)
@@ -165,7 +163,7 @@ def rect_tensile_fault(fparams, eparams, data):
     for i in range(n):
     
         # shift and rotate the coordinates into Okada geometry
-        P=np.array([[data[i,0]-xc],[data[i,1]-yc]]); # observation point wrt centroid in map coordinates
+        P=np.array([[alldata[i,0]-xc],[alldata[i,1]-yc]]); # observation point wrt centroid in map coordinates
         Q=R.dot(P)                                   # observation point rotated into Okada geometry
             
         # run the Okada dc3d function on the rotated coordinates   
@@ -182,13 +180,13 @@ def rect_tensile_fault(fparams, eparams, data):
         UY[i] = u[0]*cos(radians(strike))-u[1]*sin(radians(strike))   # y displacement
         UZ[i] = u[2]   # z displacement
     
-    ULOS = np.multiply(UX,data[:,3]) + np.multiply(UY,data[:,4]) + np.multiply(UZ,data[:,5])
+    ULOS = np.multiply(UX,alldata[:,3]) + np.multiply(UY,alldata[:,4]) + np.multiply(UZ,alldata[:,5])
     
     # and finally, output the results
     
     # format of the output depends whether input was a list or a 2D array
     if type(data) is list:        
-        # if input was a list of arrays, then we shall output a list of arrays 
+        # if input was a list of arrays, then we shall output a list or arrays 
         
         # and we shall call it 'modeldisps'
         modeldisps = list()
