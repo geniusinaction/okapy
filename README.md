@@ -1,5 +1,5 @@
 # okapy
-Okada in Python. Not the charismatic megafauna. Right now it is limited to shear slip on a rectangular dislocation, using non-gridded data. 
+Okada in Python. Not the charismatic megafauna. Right now it is limited to shear slip or tensile slip on a rectangular dislocation, using non-gridded data. 
 
 Some dependencies:
 <ul>
